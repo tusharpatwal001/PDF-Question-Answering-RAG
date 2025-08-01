@@ -8,3 +8,4 @@ langchain-text-splitters
 langchain_community 
 pypdf
 langchain-chroma
+langchain_groq
