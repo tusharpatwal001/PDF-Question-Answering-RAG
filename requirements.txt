@@ -6,6 +6,8 @@ ipykernel
 langchain-community
 langchain-text-splitters
 langchain_community 
-pypdf
 langchain-chroma
 langchain_groq
+streamlit
+PyPDF2
+faiss-cpu
