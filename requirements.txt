@@ -1,5 +1,6 @@
 langchain
 langchain-ollama
+langchain-groq
 langchain-text-splitters
 streamlit
 PyPDF2
