@@ -1,12 +1,19 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
+from langchain_groq.chat_models import ChatGroq
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_ollama.chat_models import ChatOllama
-from langchain_ollama.embeddings import OllamaEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
+from langchain.embeddings import HuggingFaceEmbeddings
 from PyPDF2 import PdfReader
+
+load_dotenv()
+
+# Set your Groq API key
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 
 
 def get_pdf_text(pdf):
@@ -26,7 +33,8 @@ def get_text_chunks(docs):
 
 
 def get_vector_store(chunks):
-    embeddings = OllamaEmbeddings(model="mxbai-embed-large:latest")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2")
     vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
     vectorstore.save_local("faiss_index")
 
@@ -42,7 +50,7 @@ def get_conversational_chain():
     Answer:
     """
 
-    model = ChatOllama(model="gemma3:1b", temperature=0.3)
+    model = ChatGroq(model="llama-3.1-8b-instant", api_key=GROQ_API_KEY)
     prompt = PromptTemplate(template=prompt_template,
                             input_variables=['context', 'question'])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
@@ -51,7 +59,8 @@ def get_conversational_chain():
 
 
 def user_input(question):
-    embeddings = OllamaEmbeddings(model="mxbai-embed-large:latest")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     new_db = FAISS.load_local(
         "faiss_index", embeddings=embeddings, allow_dangerous_deserialization=True)
@@ -67,24 +76,25 @@ def user_input(question):
 
 
 def main():
-    st.set_page_config("Chat PDF")
-    st.header("Chat with PDF using Gemma3")
+    st.set_page_config(
+        page_title="Chat with PDF (Groq LLaMA3)", layout="centered")
+    st.title("📄 Chat with PDF using LLaMA 3 (Groq)")
 
-    user_question = st.text_input("Ask a Question from the PDF Files")
+    user_question = st.text_input("💭 Ask something from the PDF")
 
     if user_question:
         user_input(user_question)
 
     with st.sidebar:
-        st.title("Menu:")
+        st.header("📁 Upload PDF")
         pdf_docs = st.file_uploader(
-            "Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
+            "Upload PDF files", accept_multiple_files=True)
         if st.button("Submit & Process"):
-            with st.spinner("Processing..."):
+            with st.spinner("⏳ Processing PDFs..."):
                 raw_text = get_pdf_text(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
-                get_vector_store(text_chunks)
-                st.success("Done")
+                chunks = get_text_chunks(raw_text)
+                get_vector_store(chunks)
+                st.success("✅ Done! Ask your questions in the main window.")
 
 
 if __name__ == "__main__":
