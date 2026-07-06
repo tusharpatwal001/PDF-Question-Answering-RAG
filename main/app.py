@@ -1,19 +1,17 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_groq.chat_models import ChatGroq
+from langchain_openai.chat_models import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.prompts import PromptTemplate
+from langchain_huggingface import HuggingFaceEmbeddings
 from PyPDF2 import PdfReader
 
 load_dotenv()
 
 # Set your Groq API key
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 
 def get_pdf_text(pdf):
@@ -50,7 +48,7 @@ def get_conversational_chain():
     Answer:
     """
 
-    model = ChatGroq(model="llama-3.1-8b-instant", api_key=GROQ_API_KEY)
+    model = ChatOpenAI(model="gpt-5-nano", api_key=OPENAI_API_KEY)
     prompt = PromptTemplate(template=prompt_template,
                             input_variables=['context', 'question'])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
