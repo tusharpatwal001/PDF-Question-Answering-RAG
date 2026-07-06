@@ -7,11 +7,15 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
 from PyPDF2 import PdfReader
-
+from pydantic import SecretStr
 load_dotenv()
 
 # Set your Groq API key
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+print(OPENAI_API_KEY)
+
+import sys; sys.exit(0)
 
 
 def get_pdf_text(pdf):
@@ -48,9 +52,11 @@ def get_conversational_chain():
     Answer:
     """
 
-    model = ChatOpenAI(model="gpt-5-nano", api_key=OPENAI_API_KEY)
+    model = ChatOpenAI(model="gpt-5-nano", api_key=SecretStr(OPENAI_API_KEY))
     prompt = PromptTemplate(template=prompt_template,
                             input_variables=['context', 'question'])
+    
+    
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
     return chain
