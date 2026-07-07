@@ -3,19 +3,21 @@ import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai.chat_models import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
 from PyPDF2 import PdfReader
 from pydantic import SecretStr
+from langchain_chroma import Chroma
+
+
 load_dotenv()
 
 # Set your Groq API key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-print(OPENAI_API_KEY)
+# print(OPENAI_API_KEY)
 
-import sys; sys.exit(0)
+# import sys; sys.exit(0)
 
 
 def get_pdf_text(pdf):
@@ -37,8 +39,17 @@ def get_text_chunks(docs):
 def get_vector_store(chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
-    vectorstore.save_local("faiss_index")
+
+    if not chunks:
+        return None
+
+    vector_store = Chroma(
+        collection_name="example_collection",
+        embedding_function=embeddings,
+        persist_directory="./chroma_langchain_db",
+    )
+    vector_store.add_texts(chunks)
+    return vector_store
 
 
 def get_conversational_chain():
@@ -57,7 +68,8 @@ def get_conversational_chain():
                             input_variables=['context', 'question'])
     
     
-    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+    # chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+    chain = prompt | model
 
     return chain
 
@@ -66,23 +78,27 @@ def user_input(question):
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    new_db = FAISS.load_local(
-        "faiss_index", embeddings=embeddings, allow_dangerous_deserialization=True)
-    docs = new_db.similarity_search(question)
+    new_db = Chroma(
+        collection_name="example_collection",
+        embedding_function=embeddings,
+        persist_directory="./chroma_langchain_db",
+    )
+    docs = new_db.similarity_search(question, k=4)
     chain = get_conversational_chain()
 
-    response = chain(
-        {"input_documents": docs, "question": question},
-        return_only_outputs=True
-    )
+    if not docs:
+        st.warning("No relevant content was found. Please upload and process a PDF first.")
+        return
+
+    context = "\n\n".join([doc.page_content for doc in docs])
+    response = chain.invoke({"context": context, "question": question})
     print(response)
-    st.write("Reply: \n", response['output_text'])
+    st.write("Reply: \n", response.content)
 
 
 def main():
-    st.set_page_config(
-        page_title="Chat with PDF (Groq LLaMA3)", layout="centered")
-    st.title("📄 Chat with PDF using LLaMA 3 (Groq)")
+    st.set_page_config(page_title="Chat with PDF", layout="centered")
+    st.title("📄 Chat with PDF")
 
     user_question = st.text_input("💭 Ask something from the PDF")
 
@@ -94,11 +110,14 @@ def main():
         pdf_docs = st.file_uploader(
             "Upload PDF files", accept_multiple_files=True)
         if st.button("Submit & Process"):
-            with st.spinner("⏳ Processing PDFs..."):
-                raw_text = get_pdf_text(pdf_docs)
-                chunks = get_text_chunks(raw_text)
-                get_vector_store(chunks)
-                st.success("✅ Done! Ask your questions in the main window.")
+            if not pdf_docs:
+                st.warning("Please upload at least one PDF file before processing.")
+            else:
+                with st.spinner("⏳ Processing PDFs..."):
+                    raw_text = get_pdf_text(pdf_docs)
+                    chunks = get_text_chunks(raw_text)
+                    get_vector_store(chunks)
+                    st.success("✅ Done! Ask your questions in the main window.")
 
 
 if __name__ == "__main__":

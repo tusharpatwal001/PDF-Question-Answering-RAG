@@ -2,9 +2,10 @@ langchain
 langchain-text-splitters
 streamlit
 PyPDF2
-faiss-cpu
 langchain-community
 dotenv
 sentence-transformers
 langchain-huggingface
 langchain-openai
+langchain-chroma
+torchvision
